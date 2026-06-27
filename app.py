@@ -53,7 +53,7 @@ if run_btn:
             df.loc[df['SMA_Short'] < df['SMA_Long'], 'Signal'] = -1
             df['Position'] = df['Signal'].diff()
             
-            # ✅ ट्रेड डिटेल्स निकालो
+            # ✅ ट्रेड डिटेल्स निकालो (सही तरीका)
             trades = []
             entry_price = 0
             entry_date = None
@@ -89,21 +89,21 @@ if run_btn:
                 c2.metric("📊 वोलैटिलिटी", f"{vol:.2f}%")
                 c3.metric("⚡ शार्प रेश्यो", f"{sharpe:.2f}")
                 c4.metric("🔄 कुल ट्रेड्स", len(trades))
-            except:
-                st.warning("⚠️ मेट्रिक्स नहीं निकाल पाए!")
+            except Exception as e:
+                st.warning(f"⚠️ मेट्रिक्स नहीं निकाल पाए: {e}")
             
-            # ✅ ट्रेड टेबल
+            # ✅ ट्रेड टेबल (सही तरीका)
             if trades:
                 st.subheader("📋 ट्रेड हिस्ट्री")
                 trades_df = pd.DataFrame(trades)
                 
-                # ✅ ट्रेड स्टैट्स
-                col1, col2, col3, col4 = st.columns(4)
+                # ✅ ट्रेड स्टैट्स - List की तरह use करो
                 win_trades = len([t for t in trades if t['Profit %'] > 0])
                 loss_trades = len([t for t in trades if t['Profit %'] < 0])
                 total_profit = sum([t['Profit %'] for t in trades])
                 avg_profit = total_profit / len(trades) if trades else 0
                 
+                col1, col2, col3, col4 = st.columns(4)
                 col1.metric("✅ जीत", f"{win_trades}")
                 col2.metric("❌ हार", f"{loss_trades}")
                 col3.metric("📊 जीत %", f"{(win_trades/len(trades)*100):.1f}%" if trades else "0%")
