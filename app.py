@@ -6,50 +6,115 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
 
-st.set_page_config(page_title="Trading App", layout="wide")
+# पेज सेटअप
+st.set_page_config(page_title="📊 ट्रेडिंग ऐप", layout="wide")
 
+# टाइटल
 st.title("📊 ट्रेडिंग बैकटेस्टिंग ऐप")
 
+# साइडबार
 with st.sidebar:
-    symbol = st.text_input("स्टॉक सिंबल", "AAPL").upper()
-    start = st.date_input("शुरुआत", datetime.now() - timedelta(days=365))
-    end = st.date_input("अंत", datetime.now())
-    sma1 = st.number_input("Short SMA", 50)
-    sma2 = st.number_input("Long SMA", 200)
-    run = st.button("🚀 बैकटेस्ट")
-
-@st.cache_data
-def get_data(symbol, start, end):
-    return yf.download(symbol, start=start, end=end, progress=False)
-
-if run:
-    with st.spinner("डेटा लोड हो रहा..."):
-        df = get_data(symbol, start, end)
+    st.header("⚙️ सेटिंग्स")
+    symbol = st.text_input("स्टॉक सिंबल", value="AAPL").upper()
     
-    if not df.empty:
-        df['SMA1'] = df['Close'].rolling(sma1).mean()
-        df['SMA2'] = df['Close'].rolling(sma2).mean()
-        df['Signal'] = np.where(df['SMA1'] > df['SMA2'], 1, -1)
-        df['Position'] = df['Signal'].diff()
-        
-        col1, col2, col3 = st.columns(3)
-        col1.metric("📈 रिटर्न", f"{((df['Close'].iloc[-1]/df['Close'].iloc[0]-1)*100):.2f}%")
-        col2.metric("💰 वोलैटिलिटी", f"{df['Close'].pct_change().std()*100:.2f}%")
-        col3.metric("📊 शार्प", f"{((df['Close'].pct_change().mean()/df['Close'].pct_change().std())*np.sqrt(252)):.2f}")
-        
-        fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.7, 0.3])
-        fig.add_trace(go.Scatter(x=df.index, y=df['Close'], name='Price'), row=1, col=1)
-        fig.add_trace(go.Scatter(x=df.index, y=df['SMA1'], name=f'SMA{sma1}'), row=1, col=1)
-        fig.add_trace(go.Scatter(x=df.index, y=df['SMA2'], name=f'SMA{sma2}'), row=1, col=1)
-        buy = df[df['Position'] == 2]
-        sell = df[df['Position'] == -2]
-        fig.add_trace(go.Scatter(x=buy.index, y=buy['Close'], mode='markers', marker=dict(symbol='triangle-up', size=12, color='green'), name='Buy'), row=1, col=1)
-        fig.add_trace(go.Scatter(x=sell.index, y=sell['Close'], mode='markers', marker=dict(symbol='triangle-down', size=12, color='red'), name='Sell'), row=1, col=1)
-        fig.add_trace(go.Bar(x=df.index, y=df['Volume'], name='Volume'), row=2, col=1)
-        fig.update_layout(height=600, template='plotly_white')
-        st.plotly_chart(fig, use_container_width=True)
-        
-        with st.expander("📋 डेटा"):
-            st.dataframe(df.tail(20))
+    col1, col2 = st.columns(2)
+    with col1:
+        start_date = st.date_input("शुरुआत", datetime.now() - timedelta(days=365))
+    with col2:
+        end_date = st.date_input("अंत", datetime.now())
+    
+    sma_short = st.number_input("Short SMA", value=50, min_value=5, max_value=200, step=5)
+    sma_long = st.number_input("Long SMA", value=200, min_value=20, max_value=300, step=5)
+    
+    run_btn = st.button("🚀 बैकटेस्ट", type="primary", use_container_width=True)
+
+# डेटा फेच करने का फंक्शन
+@st.cache_data
+def fetch_data(symbol, start, end):
+    try:
+        df = yf.download(symbol, start=start, end=end, progress=False)
+        return df
+    except Exception as e:
+        st.error(f"❌ एरर: {e}")
+        return None
+
+# बैकटेस्ट लॉजिक
+if run_btn:
+    if not symbol:
+        st.warning("⚠️ कृपया स्टॉक सिंबल डालें!")
+    elif start_date >= end_date:
+        st.warning("⚠️ शुरुआत तारीख अंत से पहले होनी चाहिए!")
     else:
-        st.error("❌ डेटा नहीं मिला!")
+        with st.spinner("📥 डेटा लोड हो रहा है..."):
+            df = fetch_data(symbol, start_date, end_date)
+        
+        if df is not None and not df.empty:
+            # Indicators
+            df['SMA_Short'] = df['Close'].rolling(window=sma_short).mean()
+            df['SMA_Long'] = df['Close'].rolling(window=sma_long).mean()
+            df['Signal'] = 0
+            df.loc[df['SMA_Short'] > df['SMA_Long'], 'Signal'] = 1
+            df.loc[df['SMA_Short'] < df['SMA_Long'], 'Signal'] = -1
+            df['Position'] = df['Signal'].diff()
+            
+            # मेट्रिक्स
+            total_return = ((df['Close'].iloc[-1] / df['Close'].iloc[0]) - 1) * 100
+            volatility = df['Close'].pct_change().std() * 100
+            sharpe = (df['Close'].pct_change().mean() / df['Close'].pct_change().std()) * np.sqrt(252)
+            
+            # मेट्रिक्स दिखाओ
+            col1, col2, col3 = st.columns(3)
+            col1.metric("📈 कुल रिटर्न", f"{total_return:.2f}%")
+            col2.metric("📊 वोलैटिलिटी", f"{volatility:.2f}%")
+            col3.metric("⚡ शार्प रेश्यो", f"{sharpe:.2f}" if not np.isnan(sharpe) else "N/A")
+            
+            # चार्ट
+            fig = make_subplots(rows=2, cols=1, shared_xaxes=True, 
+                               row_heights=[0.7, 0.3],
+                               vertical_spacing=0.1)
+            
+            # Price & SMA
+            fig.add_trace(go.Scatter(x=df.index, y=df['Close'], 
+                                    name='Price', line=dict(color='white')), row=1, col=1)
+            fig.add_trace(go.Scatter(x=df.index, y=df['SMA_Short'], 
+                                    name=f'SMA {sma_short}', line=dict(color='orange')), row=1, col=1)
+            fig.add_trace(go.Scatter(x=df.index, y=df['SMA_Long'], 
+                                    name=f'SMA {sma_long}', line=dict(color='blue')), row=1, col=1)
+            
+            # बाय/सेल सिग्नल
+            buy_signals = df[df['Position'] == 2]
+            sell_signals = df[df['Position'] == -2]
+            
+            fig.add_trace(go.Scatter(x=buy_signals.index, y=buy_signals['Close'],
+                                    mode='markers', marker=dict(symbol='triangle-up', 
+                                    size=12, color='green'), name='Buy'), row=1, col=1)
+            fig.add_trace(go.Scatter(x=sell_signals.index, y=sell_signals['Close'],
+                                    mode='markers', marker=dict(symbol='triangle-down', 
+                                    size=12, color='red'), name='Sell'), row=1, col=1)
+            
+            # वॉल्यूम
+            colors = ['green' if row['Close'] >= row['Open'] else 'red' for _, row in df.iterrows()]
+            fig.add_trace(go.Bar(x=df.index, y=df['Volume'], 
+                                marker_color=colors, name='Volume'), row=2, col=1)
+            
+            fig.update_layout(height=600, template='plotly_dark', 
+                             hovermode='x unified')
+            fig.update_yaxes(title_text="Price ($)", row=1, col=1)
+            fig.update_yaxes(title_text="Volume", row=2, col=1)
+            
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # डेटा टेबल
+            with st.expander("📋 डेटा देखें"):
+                st.dataframe(df.tail(20))
+            
+            # CSV डाउनलोड
+            csv = df.to_csv().encode('utf-8')
+            st.download_button("📥 CSV डाउनलोड करें", data=csv,
+                              file_name=f"{symbol}_data.csv", mime="text/csv")
+        else:
+            st.error(f"❌ {symbol} के लिए डेटा नहीं मिला! सही सिंबल डालें (जैसे AAPL, TSLA, RELIANCE.NS)")
+
+# फुटर
+st.markdown("---")
+st.caption("🚀 Streamlit + yfinance + Plotly के साथ बनाया गया")
