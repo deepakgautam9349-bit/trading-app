@@ -62,7 +62,7 @@ if run_btn:
             volatility = df['Close'].pct_change().std() * 100
             sharpe = (df['Close'].pct_change().mean() / df['Close'].pct_change().std()) * np.sqrt(252)
             
-            # मेट्रिक्स दिखाओ
+            # ✅ मेट्रिक्स दिखाओ (यहाँ सही किया है)
             col1, col2, col3 = st.columns(3)
             col1.metric("📈 कुल रिटर्न", f"{total_return:.2f}%")
             col2.metric("📊 वोलैटिलिटी", f"{volatility:.2f}%")
