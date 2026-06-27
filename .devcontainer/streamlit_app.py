@@ -33,7 +33,7 @@ if run:
     with st.spinner("Loading data..."):
         df = load_data(symbol, start, end)
     
-    if df.empty:
+    if len(df) == 0:
         st.error(f"No data found for {symbol}!")
         st.stop()
     
@@ -45,16 +45,17 @@ if run:
     df.loc[df['SMA1'] < df['SMA2'], 'Signal'] = -1
     df['Position'] = df['Signal'].diff()
     
-    # Simple Metrics (बिना किसी गलती के)
+    # ✅ यहाँ "pct_change" सही किया!
+    returns = df['Close'].pct_change()
     return_pct = ((df['Close'].iloc[-1] / df['Close'].iloc[0]) - 1) * 100
-    vol_pct = df['Close'].pct_change().std() * 100
-    sharpe = ((df['Close'].pct_change().mean() / df['Close'].pct_change().std()) * (252**0.5)) if df['Close'].pct_change().std() != 0 else 0
+    vol_pct = returns.std() * 100
+    sharpe = (returns.mean() / returns.std()) * (252**0.5) if returns.std() != 0 else 0
     
-    # Show Metrics - SIMPLE AND CLEAN
-    c1, c2, c3 = st.columns(3)
-    c1.metric("📈 Return", f"{return_pct:.2f}%")
-    c2.metric("📊 Volatility", f"{vol_pct:.2f}%")
-    c3.metric("⚡ Sharpe", f"{sharpe:.2f}")
+    # Show Metrics
+    col1, col2, col3 = st.columns(3)
+    col1.metric("📈 Return", f"{return_pct:.2f}%")
+    col2.metric("📊 Volatility", f"{vol_pct:.2f}%")
+    col3.metric("⚡ Sharpe", f"{sharpe:.2f}")
     
     # Price Chart
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.7, 0.3])
@@ -74,6 +75,5 @@ if run:
     fig.update_layout(height=500, template='plotly_dark')
     st.plotly_chart(fig, use_container_width=True)
     
-    # Raw Data
     with st.expander("📊 Raw Data"):
         st.dataframe(df.tail(20))
