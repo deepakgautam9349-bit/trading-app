@@ -33,6 +33,8 @@ with st.sidebar:
 def fetch_data(symbol, start, end):
     try:
         df = yf.download(symbol, start=start, end=end, progress=False)
+        if df.empty:
+            return None
         return df
     except Exception as e:
         st.error(f"❌ एरर: {e}")
@@ -48,7 +50,10 @@ if run_btn:
         with st.spinner("📥 डेटा लोड हो रहा है..."):
             df = fetch_data(symbol, start_date, end_date)
         
-        if df is not None and not df.empty:
+        # ✅ डेटा चेक करो
+        if df is None or df.empty:
+            st.error(f"❌ {symbol} के लिए डेटा नहीं मिला! सही सिंबल डालें (जैसे AAPL, TSLA, RELIANCE.NS)")
+        else:
             # Indicators
             df['SMA_Short'] = df['Close'].rolling(window=sma_short).mean()
             df['SMA_Long'] = df['Close'].rolling(window=sma_long).mean()
@@ -57,16 +62,19 @@ if run_btn:
             df.loc[df['SMA_Short'] < df['SMA_Long'], 'Signal'] = -1
             df['Position'] = df['Signal'].diff()
             
-            # मेट्रिक्स
-            total_return = ((df['Close'].iloc[-1] / df['Close'].iloc[0]) - 1) * 100
-            volatility = df['Close'].pct_change().std() * 100
-            sharpe = (df['Close'].pct_change().mean() / df['Close'].pct_change().std()) * np.sqrt(252)
-            
-            # ✅ मेट्रिक्स दिखाओ (यहाँ सही किया है)
-            col1, col2, col3 = st.columns(3)
-            col1.metric("📈 कुल रिटर्न", f"{total_return:.2f}%")
-            col2.metric("📊 वोलैटिलिटी", f"{volatility:.2f}%")
-            col3.metric("⚡ शार्प रेश्यो", f"{sharpe:.2f}" if not np.isnan(sharpe) else "N/A")
+            # ✅ मेट्रिक्स (सिर्फ तभी जब डेटा हो)
+            if len(df) > 1:
+                total_return = ((df['Close'].iloc[-1] / df['Close'].iloc[0]) - 1) * 100
+                volatility = df['Close'].pct_change().std() * 100
+                sharpe = (df['Close'].pct_change().mean() / df['Close'].pct_change().std()) * np.sqrt(252)
+                
+                col1, col2, col3 = st.columns(3)
+                col1.metric("📈 कुल रिटर्न", f"{total_return:.2f}%")
+                col2.metric("📊 वोलैटिलिटी", f"{volatility:.2f}%")
+                col3.metric("⚡ शार्प रेश्यो", f"{sharpe:.2f}" if not np.isnan(sharpe) else "N/A")
+            else:
+                st.warning("⚠️ पर्याप्त डेटा नहीं है!")
+                st.stop()
             
             # चार्ट
             fig = make_subplots(rows=2, cols=1, shared_xaxes=True, 
@@ -85,12 +93,14 @@ if run_btn:
             buy_signals = df[df['Position'] == 2]
             sell_signals = df[df['Position'] == -2]
             
-            fig.add_trace(go.Scatter(x=buy_signals.index, y=buy_signals['Close'],
-                                    mode='markers', marker=dict(symbol='triangle-up', 
-                                    size=12, color='green'), name='Buy'), row=1, col=1)
-            fig.add_trace(go.Scatter(x=sell_signals.index, y=sell_signals['Close'],
-                                    mode='markers', marker=dict(symbol='triangle-down', 
-                                    size=12, color='red'), name='Sell'), row=1, col=1)
+            if not buy_signals.empty:
+                fig.add_trace(go.Scatter(x=buy_signals.index, y=buy_signals['Close'],
+                                        mode='markers', marker=dict(symbol='triangle-up', 
+                                        size=12, color='green'), name='Buy'), row=1, col=1)
+            if not sell_signals.empty:
+                fig.add_trace(go.Scatter(x=sell_signals.index, y=sell_signals['Close'],
+                                        mode='markers', marker=dict(symbol='triangle-down', 
+                                        size=12, color='red'), name='Sell'), row=1, col=1)
             
             # वॉल्यूम
             colors = ['green' if row['Close'] >= row['Open'] else 'red' for _, row in df.iterrows()]
@@ -112,8 +122,6 @@ if run_btn:
             csv = df.to_csv().encode('utf-8')
             st.download_button("📥 CSV डाउनलोड करें", data=csv,
                               file_name=f"{symbol}_data.csv", mime="text/csv")
-        else:
-            st.error(f"❌ {symbol} के लिए डेटा नहीं मिला! सही सिंबल डालें (जैसे AAPL, TSLA, RELIANCE.NS)")
 
 # फुटर
 st.markdown("---")
