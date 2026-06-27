@@ -45,17 +45,17 @@ if run:
     df.loc[df['SMA1'] < df['SMA2'], 'Signal'] = -1
     df['Position'] = df['Signal'].diff()
     
-    # ✅ यहाँ "pct_change" सही किया!
-    returns = df['Close'].pct_change()
-    return_pct = ((df['Close'].iloc[-1] / df['Close'].iloc[0]) - 1) * 100
-    vol_pct = returns.std() * 100
-    sharpe = (returns.mean() / returns.std()) * (252**0.5) if returns.std() != 0 else 0
+    # ✅ SIMPLE AND CLEAN METRICS
+    returns = df['Close'].pct_change().dropna()
+    total_return = ((df['Close'].iloc[-1] - df['Close'].iloc[0]) / df['Close'].iloc[0]) * 100
+    volatility = returns.std() * 100
+    sharpe_ratio = (returns.mean() / returns.std()) * (252 ** 0.5) if returns.std() != 0 else 0
     
     # Show Metrics
     col1, col2, col3 = st.columns(3)
-    col1.metric("📈 Return", f"{return_pct:.2f}%")
-    col2.metric("📊 Volatility", f"{vol_pct:.2f}%")
-    col3.metric("⚡ Sharpe", f"{sharpe:.2f}")
+    col1.metric("📈 Return", f"{total_return:.2f}%")
+    col2.metric("📊 Volatility", f"{volatility:.2f}%")
+    col3.metric("⚡ Sharpe", f"{sharpe_ratio:.2f}")
     
     # Price Chart
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.7, 0.3])
