@@ -14,8 +14,8 @@ with st.sidebar:
     symbol = st.text_input("स्टॉक सिंबल", "BTC-USD").upper()
     start_date = st.date_input("शुरुआत", datetime.now() - timedelta(days=365))
     end_date = st.date_input("अंत", datetime.now())
-    sma_short = st.number_input("Short SMA", 20, 5, 200, 5)
-    sma_long = st.number_input("Long SMA", 50, 20, 300, 5)
+    sma_short = st.number_input("Short SMA", value=20, min_value=5, max_value=200, step=5)
+    sma_long = st.number_input("Long SMA", value=50, min_value=5, max_value=300, step=5)
     run = st.button("🚀 बैकटेस्ट", type="primary")
 
 @st.cache_data
@@ -33,7 +33,6 @@ if run:
             st.error(f"❌ {symbol} का डेटा नहीं मिला!")
             st.stop()
         
-        # Indicators
         df['SMA1'] = df['Close'].rolling(sma_short).mean()
         df['SMA2'] = df['Close'].rolling(sma_long).mean()
         df['Signal'] = 0
@@ -41,7 +40,6 @@ if run:
         df.loc[df['SMA1'] < df['SMA2'], 'Signal'] = -1
         df['Position'] = df['Signal'].diff()
         
-        # ट्रेड्स निकालो
         trades = []
         entry = None
         entry_date = None
@@ -64,7 +62,6 @@ if run:
                 })
                 in_trade = False
         
-        # मेट्रिक्स
         c1, c2, c3 = st.columns(3)
         total_return = ((df['Close'].iloc[-1] / df['Close'].iloc[0]) - 1) * 100
         c1.metric("📈 कुल रिटर्न", f"{total_return:.2f}%")
@@ -73,13 +70,11 @@ if run:
         win = len([t for t in trades if t['Profit %'] > 0]) if trades else 0
         c3.metric("✅ जीत %", f"{(win/len(trades)*100):.1f}%" if trades else "0%")
         
-        # ट्रेड टेबल
         if trades:
             st.subheader("📋 ट्रेड हिस्ट्री")
             df_trades = pd.DataFrame(trades)
             st.dataframe(df_trades, use_container_width=True)
             
-            # Profit/Loss Chart
             fig2 = go.Figure()
             profits = [t['Profit %'] for t in trades]
             colors = ['green' if p > 0 else 'red' for p in profits]
@@ -90,7 +85,6 @@ if run:
         else:
             st.info("ℹ️ कोई ट्रेड सिग्नल नहीं आया!")
         
-        # मेन चार्ट
         fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.7, 0.3])
         fig.add_trace(go.Scatter(x=df.index, y=df['Close'], name='Price'))
         fig.add_trace(go.Scatter(x=df.index, y=df['SMA1'], name=f'SMA {sma_short}', line=dict(color='orange')))
