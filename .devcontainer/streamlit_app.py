@@ -5,13 +5,9 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
 
-# Page config
 st.set_page_config(page_title="📊 Trading App", layout="wide")
-
-# Title
 st.title("📊 ट्रेडिंग बैकटेस्टिंग ऐप")
 
-# Sidebar
 with st.sidebar:
     st.header("⚙️ SETTINGS")
     symbol = st.text_input("Stock Symbol", "BTC-USD").upper()
@@ -21,7 +17,6 @@ with st.sidebar:
     sma_long = st.slider("Long SMA", 20, 200, 50)
     run_button = st.button("🚀 RUN BACKTEST", type="primary")
 
-# Load data
 @st.cache_data
 def get_data(symbol, start, end):
     try:
@@ -30,7 +25,6 @@ def get_data(symbol, start, end):
     except:
         return pd.DataFrame()
 
-# Main logic
 if run_button:
     if not symbol:
         st.warning("⚠️ Please enter a stock symbol!")
@@ -43,7 +37,6 @@ if run_button:
         st.error(f"❌ No data found for {symbol}!")
         st.stop()
     
-    # Calculate indicators
     df['SMA_Short'] = df['Close'].rolling(sma_short).mean()
     df['SMA_Long'] = df['Close'].rolling(sma_long).mean()
     df['Signal'] = 0
@@ -51,7 +44,6 @@ if run_button:
     df.loc[df['SMA_Short'] < df['SMA_Long'], 'Signal'] = -1
     df['Position'] = df['Signal'].diff()
     
-    # Find trades
     trades = []
     entry_price = 0
     entry_date = None
@@ -74,7 +66,7 @@ if run_button:
             })
             in_trade = False
     
-    # Display metrics
+    # ✅ यहाँ "col1" है, "coll" नहीं!
     col1, col2, col3, col4 = st.columns(4)
     
     total_return = ((df['Close'].iloc[-1] / df['Close'].iloc[0]) - 1) * 100
@@ -91,30 +83,22 @@ if run_button:
         col3.metric("✅ Win Rate", "0%")
         col4.metric("💰 Avg Profit", "0%")
     
-    # Trade History
     if trades:
         st.subheader("📋 Trade History")
         st.dataframe(pd.DataFrame(trades), use_container_width=True)
         
-        # Profit chart
         fig2 = go.Figure()
         fig2.add_trace(go.Bar(
             x=[f"#{i+1}" for i in range(len(trades))],
             y=[t['Profit %'] for t in trades],
             marker_color=['green' if t['Profit %'] > 0 else 'red' for t in trades]
         ))
-        fig2.update_layout(
-            title="📊 Profit/Loss per Trade",
-            height=300,
-            template='plotly_dark'
-        )
+        fig2.update_layout(title="📊 Profit/Loss per Trade", height=300, template='plotly_dark')
         st.plotly_chart(fig2, use_container_width=True)
     else:
         st.info("ℹ️ No trading signals generated!")
     
-    # Price chart
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.7, 0.3])
-    
     fig.add_trace(go.Scatter(x=df.index, y=df['Close'], name='Price', line=dict(color='white')))
     fig.add_trace(go.Scatter(x=df.index, y=df['SMA_Short'], name=f'SMA {sma_short}', line=dict(color='orange')))
     fig.add_trace(go.Scatter(x=df.index, y=df['SMA_Long'], name=f'SMA {sma_long}', line=dict(color='blue')))
@@ -123,33 +107,15 @@ if run_button:
     sell_signals = df[df['Position'] == -2]
     
     if not buy_signals.empty:
-        fig.add_trace(go.Scatter(
-            x=buy_signals.index,
-            y=buy_signals['Close'],
-            mode='markers',
-            marker=dict(symbol='triangle-up', size=12, color='green'),
-            name='Buy'
-        ))
-    
+        fig.add_trace(go.Scatter(x=buy_signals.index, y=buy_signals['Close'], mode='markers',
+                                marker=dict(symbol='triangle-up', size=12, color='green'), name='Buy'))
     if not sell_signals.empty:
-        fig.add_trace(go.Scatter(
-            x=sell_signals.index,
-            y=sell_signals['Close'],
-            mode='markers',
-            marker=dict(symbol='triangle-down', size=12, color='red'),
-            name='Sell'
-        ))
+        fig.add_trace(go.Scatter(x=sell_signals.index, y=sell_signals['Close'], mode='markers',
+                                marker=dict(symbol='triangle-down', size=12, color='red'), name='Sell'))
     
     fig.add_trace(go.Bar(x=df.index, y=df['Volume'], name='Volume', marker_color='gray'))
-    
-    fig.update_layout(
-        height=500,
-        template='plotly_dark',
-        showlegend=True
-    )
-    
+    fig.update_layout(height=500, template='plotly_dark')
     st.plotly_chart(fig, use_container_width=True)
     
-    # Raw data
     with st.expander("📊 View Raw Data"):
         st.dataframe(df.tail(20))
