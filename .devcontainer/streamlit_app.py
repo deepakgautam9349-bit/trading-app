@@ -66,23 +66,21 @@ if run_button:
             })
             in_trade = False
     
-    c1, c2, c3, c4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
     total_return = ((df['Close'].iloc[-1] / df['Close'].iloc[0]) - 1) * 100
-    c1.metric("📈 Return", f"{total_return:.2f}%")
-    c2.metric("🔄 Trades", len(trades))
+    col1.metric("📈 Return", f"{total_return:.2f}%")
+    col2.metric("🔄 Trades", len(trades))
     if trades:
         win_trades = len([t for t in trades if t['Profit %'] > 0])
         win_rate = (win_trades / len(trades)) * 100
-        avg_profit = sum([t['Profit %'] for t in trades]) / len(trades)
-        c3.metric("✅ Win Rate", f"{win_rate:.1f}%")
-        c4.metric("💰 Avg Profit", f"{avg_profit:.2f}%")
+        col3.metric("✅ Win Rate", f"{win_rate:.1f}%")
     else:
-        c3.metric("✅ Win Rate", "0%")
-        c4.metric("💰 Avg Profit", "0%")
+        col3.metric("✅ Win Rate", "0%")
     
     if trades:
         st.subheader("📋 Trade History")
         st.dataframe(pd.DataFrame(trades), use_container_width=True)
+        
         fig2 = go.Figure()
         fig2.add_trace(go.Bar(
             x=[f"#{i+1}" for i in range(len(trades))],
@@ -98,14 +96,17 @@ if run_button:
     fig.add_trace(go.Scatter(x=df.index, y=df['Close'], name='Price', line=dict(color='white')))
     fig.add_trace(go.Scatter(x=df.index, y=df['SMA_Short'], name=f'SMA {sma_short}', line=dict(color='orange')))
     fig.add_trace(go.Scatter(x=df.index, y=df['SMA_Long'], name=f'SMA {sma_long}', line=dict(color='blue')))
+    
     buy_signals = df[df['Position'] == 2]
     sell_signals = df[df['Position'] == -2]
     if not buy_signals.empty:
         fig.add_trace(go.Scatter(x=buy_signals.index, y=buy_signals['Close'], mode='markers', marker=dict(symbol='triangle-up', size=12, color='green'), name='Buy'))
     if not sell_signals.empty:
         fig.add_trace(go.Scatter(x=sell_signals.index, y=sell_signals['Close'], mode='markers', marker=dict(symbol='triangle-down', size=12, color='red'), name='Sell'))
+    
     fig.add_trace(go.Bar(x=df.index, y=df['Volume'], name='Volume', marker_color='gray'))
     fig.update_layout(height=500, template='plotly_dark')
     st.plotly_chart(fig, use_container_width=True)
+    
     with st.expander("📊 Raw Data"):
         st.dataframe(df.tail(20))
