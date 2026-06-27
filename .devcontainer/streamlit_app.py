@@ -6,107 +6,56 @@ from plotly.subplots import make_subplots
 from datetime import datetime, timedelta
 
 st.set_page_config(page_title="📊 Trading App", layout="wide")
-st.title("📊 ट्रेडिंग बैकटेस्टिंग ऐप")
+st.title("📊 Crypto Trading Backtest")
 
 with st.sidebar:
-    st.header("⚙️ SETTINGS")
-    symbol = st.text_input("Stock Symbol", "BTC-USD").upper()
-    start_date = st.date_input("Start Date", datetime.now() - timedelta(days=365))
-    end_date = st.date_input("End Date", datetime.now())
-    sma_short = st.slider("Short SMA", 5, 100, 20)
-    sma_long = st.slider("Long SMA", 20, 200, 50)
-    run_button = st.button("🚀 RUN BACKTEST", type="primary")
+    st.header("⚙️ Settings")
+    symbol = st.text_input("Symbol (e.g., BTC-USD)", "BTC-USD").upper()
+    start = st.date_input("Start", datetime.now() - timedelta(days=365))
+    end = st.date_input("End", datetime.now())
+    sma1 = st.slider("Short SMA", 5, 100, 20)
+    sma2 = st.slider("Long SMA", 20, 200, 50)
+    run = st.button("🚀 RUN BACKTEST", type="primary")
 
 @st.cache_data
-def get_data(symbol, start, end):
-    try:
-        df = yf.download(symbol, start=start, end=end, progress=False)
-        return df
-    except:
-        return pd.DataFrame()
+def load_data(symbol, start, end):
+    return yf.download(symbol, start=start, end=end, progress=False)
 
-if run_button:
-    if not symbol:
-        st.warning("⚠️ Please enter a stock symbol!")
-        st.stop()
-    
-    with st.spinner("📥 Loading data..."):
-        df = get_data(symbol, start_date, end_date)
+if run:
+    with st.spinner("Loading..."):
+        df = load_data(symbol, start, end)
     
     if df.empty:
-        st.error(f"❌ No data found for {symbol}!")
+        st.error("No data found for this symbol!")
         st.stop()
     
-    df['SMA_Short'] = df['Close'].rolling(sma_short).mean()
-    df['SMA_Long'] = df['Close'].rolling(sma_long).mean()
+    # Simple Strategy
+    df['S1'] = df['Close'].rolling(sma1).mean()
+    df['S2'] = df['Close'].rolling(sma2).mean()
     df['Signal'] = 0
-    df.loc[df['SMA_Short'] > df['SMA_Long'], 'Signal'] = 1
-    df.loc[df['SMA_Short'] < df['SMA_Long'], 'Signal'] = -1
-    df['Position'] = df['Signal'].diff()
+    df.loc[df['S1'] > df['S2'], 'Signal'] = 1
+    df.loc[df['S1'] < df['S2'], 'Signal'] = -1
+    df['Pos'] = df['Signal'].diff()
     
-    trades = []
-    entry_price = 0
-    entry_date = None
-    in_trade = False
+    # Show Metrics (इस बार "col" सही है!)
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Total Return", f"{((df['Close'].iloc[-1]/df['Close'].iloc[0]-1)*100):.2f}%")
+    c2.metric("Volatility", f"{df['Close'].pct_change().std()*100:.2f}%")
+    c3.metric("Sharpe", f"{((df['Close'].pct_change().mean()/df['Close'].pct_change().std())*252**0.5):.2f}")
     
-    for i in range(len(df)):
-        if df['Position'].iloc[i] == 2 and not in_trade:
-            entry_price = df['Close'].iloc[i]
-            entry_date = df.index[i]
-            in_trade = True
-        elif df['Position'].iloc[i] == -2 and in_trade:
-            exit_price = df['Close'].iloc[i]
-            profit_pct = ((exit_price - entry_price) / entry_price) * 100
-            trades.append({
-                'Entry Date': entry_date,
-                'Entry Price': round(entry_price, 2),
-                'Exit Date': df.index[i],
-                'Exit Price': round(exit_price, 2),
-                'Profit %': round(profit_pct, 2)
-            })
-            in_trade = False
-    
-    col1, col2, col3 = st.columns(3)
-    total_return = ((df['Close'].iloc[-1] / df['Close'].iloc[0]) - 1) * 100
-    col1.metric("📈 Return", f"{total_return:.2f}%")
-    col2.metric("🔄 Trades", len(trades))
-    if trades:
-        win_trades = len([t for t in trades if t['Profit %'] > 0])
-        win_rate = (win_trades / len(trades)) * 100
-        col3.metric("✅ Win Rate", f"{win_rate:.1f}%")
-    else:
-        col3.metric("✅ Win Rate", "0%")
-    
-    if trades:
-        st.subheader("📋 Trade History")
-        st.dataframe(pd.DataFrame(trades), use_container_width=True)
-        
-        fig2 = go.Figure()
-        fig2.add_trace(go.Bar(
-            x=[f"#{i+1}" for i in range(len(trades))],
-            y=[t['Profit %'] for t in trades],
-            marker_color=['green' if t['Profit %'] > 0 else 'red' for t in trades]
-        ))
-        fig2.update_layout(title="📊 Profit/Loss per Trade", height=300, template='plotly_dark')
-        st.plotly_chart(fig2, use_container_width=True)
-    else:
-        st.info("ℹ️ No trading signals generated!")
-    
+    # Chart
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.7, 0.3])
-    fig.add_trace(go.Scatter(x=df.index, y=df['Close'], name='Price', line=dict(color='white')))
-    fig.add_trace(go.Scatter(x=df.index, y=df['SMA_Short'], name=f'SMA {sma_short}', line=dict(color='orange')))
-    fig.add_trace(go.Scatter(x=df.index, y=df['SMA_Long'], name=f'SMA {sma_long}', line=dict(color='blue')))
+    fig.add_trace(go.Scatter(x=df.index, y=df['Close'], name='Price'))
+    fig.add_trace(go.Scatter(x=df.index, y=df['S1'], name=f'SMA{sma1}', line=dict(color='orange')))
+    fig.add_trace(go.Scatter(x=df.index, y=df['S2'], name=f'SMA{sma2}', line=dict(color='blue')))
     
-    buy_signals = df[df['Position'] == 2]
-    sell_signals = df[df['Position'] == -2]
-    if not buy_signals.empty:
-        fig.add_trace(go.Scatter(x=buy_signals.index, y=buy_signals['Close'], mode='markers', marker=dict(symbol='triangle-up', size=12, color='green'), name='Buy'))
-    if not sell_signals.empty:
-        fig.add_trace(go.Scatter(x=sell_signals.index, y=sell_signals['Close'], mode='markers', marker=dict(symbol='triangle-down', size=12, color='red'), name='Sell'))
+    buy = df[df['Pos'] == 2]
+    sell = df[df['Pos'] == -2]
+    if not buy.empty:
+        fig.add_trace(go.Scatter(x=buy.index, y=buy['Close'], mode='markers', marker=dict(symbol='triangle-up', size=12, color='green'), name='Buy'))
+    if not sell.empty:
+        fig.add_trace(go.Scatter(x=sell.index, y=sell['Close'], mode='markers', marker=dict(symbol='triangle-down', size=12, color='red'), name='Sell'))
     
     fig.add_trace(go.Bar(x=df.index, y=df['Volume'], name='Volume', marker_color='gray'))
     fig.update_layout(height=500, template='plotly_dark')
     st.plotly_chart(fig, use_container_width=True)
-    
-    with st.expander("📊 Raw Data"):
-        st.dataframe(df.tail(20))
