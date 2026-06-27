@@ -60,10 +60,9 @@ if run:
             })
             entry_price = None
     
-    # ✅ सही कोड - डॉट लगा दिया!
     c1, c2, c3, c4 = st.columns(4)
     total_return = ((df['Close'].iloc[-1] / df['Close'].iloc[0]) - 1) * 100
-    c1.metric("📈 कुल रिटर्न", f"{total_return:.2f}%")  # ✅ यहाँ डॉट है!
+    c1.metric("📈 कुल रिटर्न", f"{total_return:.2f}%")
     c2.metric("🔄 कुल ट्रेड्स", len(trades))
     
     if trades:
@@ -71,10 +70,10 @@ if run:
         win_rate = (win_trades / len(trades)) * 100
         avg_profit = sum([t['Profit %'] for t in trades]) / len(trades)
         c3.metric("✅ जीत %", f"{win_rate:.1f}%")
-        c4.metric("💰 औसत प्रॉफिट", f"{avg_profit:.2f}%")
+        c4.metric("💰 औसत", f"{avg_profit:.2f}%")
     else:
         c3.metric("✅ जीत %", "0%")
-        c4.metric("💰 औसत प्रॉफिट", "0%")
+        c4.metric("💰 औसत", "0%")
     
     if trades:
         st.subheader("📋 ट्रेड हिस्ट्री")
