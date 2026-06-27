@@ -33,6 +33,7 @@ if run:
         st.error(f"❌ {symbol} का डेटा नहीं मिला!")
         st.stop()
     
+    # Indicators
     df['SMA1'] = df['Close'].rolling(sma1).mean()
     df['SMA2'] = df['Close'].rolling(sma2).mean()
     df['Signal'] = 0
@@ -40,6 +41,7 @@ if run:
     df.loc[df['SMA1'] < df['SMA2'], 'Signal'] = -1
     df['Position'] = df['Signal'].diff()
     
+    # Trades
     trades = []
     entry_price = None
     entry_date = None
@@ -60,25 +62,29 @@ if run:
             })
             entry_price = None
     
-    # ✅ ये 4 लाइनें सही हैं!
-    col1, col2, col3, col4 = st.columns(4)
-    ret = ((df['Close'].iloc[-1] / df['Close'].iloc[0]) - 1) * 100
-    col1.metric("📈 रिटर्न", f"{ret:.2f}%")
-    col2.metric("🔄 ट्रेड्स", len(trades))
+    # ✅ सही तरीके से Metrics दिखाओ
+    c1, c2, c3, c4 = st.columns(4)
+    
+    total_return = ((df['Close'].iloc[-1] / df['Close'].iloc[0]) - 1) * 100
+    c1.metric("📈 रिटर्न", f"{total_return:.2f}%")
+    c2.metric("🔄 ट्रेड्स", len(trades))
     
     if trades:
-        win = len([t for t in trades if t['Profit %'] > 0])
-        col3.metric("✅ जीत %", f"{(win/len(trades)*100):.1f}%")
-        avg = sum([t['Profit %'] for t in trades]) / len(trades)
-        col4.metric("💰 औसत", f"{avg:.2f}%")
+        win_trades = len([t for t in trades if t['Profit %'] > 0])
+        win_rate = (win_trades / len(trades)) * 100
+        avg_profit = sum([t['Profit %'] for t in trades]) / len(trades)
+        c3.metric("✅ जीत %", f"{win_rate:.1f}%")
+        c4.metric("💰 औसत", f"{avg_profit:.2f}%")
     else:
-        col3.metric("✅ जीत %", "0%")
-        col4.metric("💰 औसत", "0%")
+        c3.metric("✅ जीत %", "0%")
+        c4.metric("💰 औसत", "0%")
     
+    # Trade History
     if trades:
         st.subheader("📋 ट्रेड हिस्ट्री")
         st.dataframe(pd.DataFrame(trades), use_container_width=True)
         
+        # Profit Chart
         fig2 = go.Figure()
         fig2.add_trace(go.Bar(
             x=[f"#{i+1}" for i in range(len(trades))],
@@ -90,6 +96,7 @@ if run:
     else:
         st.info("ℹ️ कोई ट्रेड सिग्नल नहीं!")
     
+    # Price Chart
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.7, 0.3])
     fig.add_trace(go.Scatter(x=df.index, y=df['Close'], name='Price'))
     fig.add_trace(go.Scatter(x=df.index, y=df['SMA1'], name=f'SMA{sma1}', line=dict(color='orange')))
@@ -107,3 +114,4 @@ if run:
     
     fig.update_layout(height=500, template='plotly_dark')
     st.plotly_chart(fig, use_container_width=True)
+    
