@@ -62,29 +62,29 @@ if run:
             })
             entry_price = None
     
-    # ✅ सही तरीके से Metrics दिखाओ
+    # ✅ यहाँ से सही कोड है
     c1, c2, c3, c4 = st.columns(4)
     
+    # Total Return
     total_return = ((df['Close'].iloc[-1] / df['Close'].iloc[0]) - 1) * 100
-    c1.metric("📈 रिटर्न", f"{total_return:.2f}%")
-    c2.metric("🔄 ट्रेड्स", len(trades))
+    c1.metric("📈 कुल रिटर्न", f"{total_return:.2f}%")
+    c2.metric("🔄 कुल ट्रेड्स", len(trades))
     
     if trades:
         win_trades = len([t for t in trades if t['Profit %'] > 0])
         win_rate = (win_trades / len(trades)) * 100
         avg_profit = sum([t['Profit %'] for t in trades]) / len(trades)
         c3.metric("✅ जीत %", f"{win_rate:.1f}%")
-        c4.metric("💰 औसत", f"{avg_profit:.2f}%")
+        c4.metric("💰 औसत प्रॉफिट", f"{avg_profit:.2f}%")
     else:
         c3.metric("✅ जीत %", "0%")
-        c4.metric("💰 औसत", "0%")
+        c4.metric("💰 औसत प्रॉफिट", "0%")
     
     # Trade History
     if trades:
         st.subheader("📋 ट्रेड हिस्ट्री")
         st.dataframe(pd.DataFrame(trades), use_container_width=True)
         
-        # Profit Chart
         fig2 = go.Figure()
         fig2.add_trace(go.Bar(
             x=[f"#{i+1}" for i in range(len(trades))],
@@ -114,4 +114,3 @@ if run:
     
     fig.update_layout(height=500, template='plotly_dark')
     st.plotly_chart(fig, use_container_width=True)
-    
