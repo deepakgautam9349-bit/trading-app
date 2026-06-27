@@ -33,7 +33,6 @@ if run:
         st.error(f"❌ {symbol} का डेटा नहीं मिला!")
         st.stop()
     
-    # Indicators
     df['SMA1'] = df['Close'].rolling(sma1).mean()
     df['SMA2'] = df['Close'].rolling(sma2).mean()
     df['Signal'] = 0
@@ -41,7 +40,6 @@ if run:
     df.loc[df['SMA1'] < df['SMA2'], 'Signal'] = -1
     df['Position'] = df['Signal'].diff()
     
-    # Trades
     trades = []
     entry_price = None
     entry_date = None
@@ -62,12 +60,10 @@ if run:
             })
             entry_price = None
     
-    # ✅ यहाँ से सही कोड है
+    # ✅ सही कोड - डॉट लगा दिया!
     c1, c2, c3, c4 = st.columns(4)
-    
-    # Total Return
     total_return = ((df['Close'].iloc[-1] / df['Close'].iloc[0]) - 1) * 100
-    c1.metric("📈 कुल रिटर्न", f"{total_return:.2f}%")
+    c1.metric("📈 कुल रिटर्न", f"{total_return:.2f}%")  # ✅ यहाँ डॉट है!
     c2.metric("🔄 कुल ट्रेड्स", len(trades))
     
     if trades:
@@ -80,7 +76,6 @@ if run:
         c3.metric("✅ जीत %", "0%")
         c4.metric("💰 औसत प्रॉफिट", "0%")
     
-    # Trade History
     if trades:
         st.subheader("📋 ट्रेड हिस्ट्री")
         st.dataframe(pd.DataFrame(trades), use_container_width=True)
@@ -96,7 +91,6 @@ if run:
     else:
         st.info("ℹ️ कोई ट्रेड सिग्नल नहीं!")
     
-    # Price Chart
     fig = make_subplots(rows=2, cols=1, shared_xaxes=True, row_heights=[0.7, 0.3])
     fig.add_trace(go.Scatter(x=df.index, y=df['Close'], name='Price'))
     fig.add_trace(go.Scatter(x=df.index, y=df['SMA1'], name=f'SMA{sma1}', line=dict(color='orange')))
